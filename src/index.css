@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Klarissa';
+  src: url('/fonts/Klarissa.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'KlarissaShadow';
+  src: url('/fonts/KlarissaShadow.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --font-headline: 'Klarissa', Georgia, serif;
+    --font-century: 'Century Gothic', CenturyGothic, AppleGothic, 'URW Gothic L', 'TeX Gyre Adventor', sans-serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    background-color: #F8FAFC;
+    color: #0F172A;
+  }
+}
+
+.font-klarissa {
+  font-family: 'Klarissa', Georgia, serif;
+  letter-spacing: 0.04em;
+}
+
+.font-klarissa-shadow {
+  font-family: 'KlarissaShadow', Georgia, serif;
+  letter-spacing: 0.04em;
+}
+
+.font-century-bold {
+  font-family: 'Century Gothic', CenturyGothic, AppleGothic, 'URW Gothic L', 'TeX Gyre Adventor', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.font-century {
+  font-family: 'Century Gothic', CenturyGothic, AppleGothic, 'URW Gothic L', 'TeX Gyre Adventor', sans-serif;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "The Wealth Code — Minnesota Executive Event",
+  "description": "The Wealth Code executive business summit on November 21, 2026 in Minnesota. Secure your reservation for 1 of 1,000 exclusive seats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
