@@ -13,7 +13,7 @@ import { ThankYouView } from './components/ThankYouView';
 import { ContactWidget } from './components/ContactWidget';
 import venueImage from './assets/images/event_venue_minnesota_1793008779899.jpg';
 
-const STORAGE_KEY = 'twc_reservations_global_v4';
+const STORAGE_KEY = 'twc_reservations_global_v5';
 
 export default function App() {
   // Splash to form to thank-you state
