@@ -21,9 +21,11 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) =
     if (!email.trim() || !emailRegex.test(email.trim())) {
       newErrors.email = 'Valid email required';
     }
-    const cleanPhone = phone.replace(/[^\d+]/g, '');
-    if (!cleanPhone || cleanPhone.length < 7) {
-      newErrors.phone = 'Valid phone required';
+    if (phone.trim()) {
+      const cleanPhone = phone.replace(/[^\d+]/g, '');
+      if (cleanPhone.length < 7) {
+        newErrors.phone = 'Valid phone required';
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -100,7 +102,7 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) =
             )}
           </div>
 
-          {/* Phone Number Field */}
+          {/* Phone Number Field (Optional) */}
           <div>
             <label className="block text-xs font-century-bold text-slate-800 mb-1.5">
               PHONE NUMBER
@@ -112,7 +114,7 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) =
                 setPhone(e.target.value);
                 if (errors.phone) setErrors({ ...errors, phone: undefined });
               }}
-              placeholder="+1 (612) 000-0000"
+              placeholder="+1 (612) 000-0000 (optional)"
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50/80 border border-slate-300 rounded-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 transition-colors"
             />
             {errors.phone && (

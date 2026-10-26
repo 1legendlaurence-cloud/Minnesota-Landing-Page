@@ -6,7 +6,7 @@ interface TypographyRevealProps {
 }
 
 export const TypographyReveal: React.FC<TypographyRevealProps> = ({ onComplete }) => {
-  const titleWords = ['THE', 'WEALTH', 'CODE'];
+  const titleWords = ['THE', 'WEALTH', 'SUMMIT'];
 
   useEffect(() => {
     // Reveal text for ~2.6 seconds, then signal to replace with the form

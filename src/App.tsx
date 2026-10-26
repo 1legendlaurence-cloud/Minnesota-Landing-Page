@@ -9,14 +9,15 @@ import { Reservation } from './types';
 import { INITIAL_RESERVATIONS } from './data/initialData';
 import { TypographyReveal } from './components/TypographyReveal';
 import { ReservationForm } from './components/ReservationForm';
-import { ReservationModal } from './components/ReservationModal';
+import { ThankYouView } from './components/ThankYouView';
+import { ContactWidget } from './components/ContactWidget';
 import venueImage from './assets/images/event_venue_minnesota_1793008779899.jpg';
 
 export default function App() {
-  // Splash to form state: Intro animated text appears once, then form replaces its position
-  const [phase, setPhase] = useState<'splash' | 'form'>('splash');
+  // Splash to form to thank-you state
+  const [phase, setPhase] = useState<'splash' | 'form' | 'thankyou'>('splash');
 
-  // Clean light mode enforcement (dark mode removed as requested)
+  // Clean light mode enforcement
   useEffect(() => {
     document.documentElement.classList.remove('dark');
   }, []);
@@ -28,10 +29,10 @@ export default function App() {
     }
   }, []);
 
-  // Reservations state
+  // Reservations state: starts strictly chronologically from Seat 1
   const [reservations, setReservations] = useState<Reservation[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('twc_reservations_data');
+      const saved = localStorage.getItem('twc_reservations_chronological_v3');
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -44,15 +45,15 @@ export default function App() {
   });
 
   const [latestReservation, setLatestReservation] = useState<Reservation | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('twc_reservations_data', JSON.stringify(reservations));
+      localStorage.setItem('twc_reservations_chronological_v3', JSON.stringify(reservations));
     }
   }, [reservations]);
 
   const handleReserve = (data: { fullName: string; email: string; phone: string }) => {
+    // Strictly chronological: 1st person gets 1, 2nd gets 2, etc.
     const seatNumber = reservations.length + 1;
     const padded = seatNumber.toString().padStart(4, '0');
     const newReservation: Reservation = {
@@ -65,18 +66,23 @@ export default function App() {
       registeredAt: new Date().toISOString(),
     };
 
-    setReservations((prev) => [newReservation, ...prev]);
+    setReservations((prev) => [...prev, newReservation]);
     setLatestReservation(newReservation);
-    setIsModalOpen(true);
+    setPhase('thankyou');
 
-    // Dispatch real email via Vercel serverless function (with graceful preview fallback)
+    // Dispatch real email via /api/send-email
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newReservation),
-    }).catch(() => {
-      // In preview or offline sandbox, UI continues seamlessly
-    });
+    })
+      .then((res) => res.json())
+      .then((result) => {
+        console.log('[Email Dispatch Status]:', result);
+      })
+      .catch((err) => {
+        console.error('[Email Dispatch Request Error]:', err);
+      });
   };
 
   return (
@@ -92,10 +98,10 @@ export default function App() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#F8FAFC]/95 via-[#F8FAFC]/90 to-[#F8FAFC]" />
       </div>
 
-      {/* Main Container: Intro text appears once, then form replaces its position in the exact center */}
+      {/* Main Container: Splash -> Form -> Simple Thank You Page (in place, zero scroll) */}
       <div className="relative z-10 w-full max-w-lg px-4 sm:px-6 flex flex-col items-center justify-center my-auto">
         <AnimatePresence mode="wait">
-          {phase === 'splash' ? (
+          {phase === 'splash' && (
             <motion.div
               key="splash-screen"
               initial={{ opacity: 0, y: 10 }}
@@ -105,26 +111,39 @@ export default function App() {
             >
               <TypographyReveal onComplete={() => setPhase('form')} />
             </motion.div>
-          ) : (
+          )}
+
+          {phase === 'form' && (
             <motion.div
               key="registration-form"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } }}
               className="w-full flex flex-col items-center justify-center"
             >
               <ReservationForm onReserve={handleReserve} />
             </motion.div>
           )}
+
+          {phase === 'thankyou' && latestReservation && (
+            <motion.div
+              key="thank-you-page"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } }}
+              className="w-full flex flex-col items-center justify-center"
+            >
+              <ThankYouView
+                reservation={latestReservation}
+                onReset={() => setPhase('form')}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
-      {/* Pop-up Thank You Modal (with Download Ticket & Instant Confirmation Email) */}
-      <ReservationModal
-        reservation={latestReservation}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {/* Sticky Call / WhatsApp Circle Widget */}
+      <ContactWidget />
     </div>
   );
 }
