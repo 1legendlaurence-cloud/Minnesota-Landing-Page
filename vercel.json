@@ -8,7 +8,11 @@
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/minnesota-event",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

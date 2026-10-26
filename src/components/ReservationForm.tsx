@@ -2,14 +2,23 @@ import React, { useState } from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
 
 interface ReservationFormProps {
-  onReserve: (data: { fullName: string; email: string; phone: string }) => void;
+  onReserve: (data: {
+    fullName: string;
+    email: string;
+    phone: string;
+  }) => Promise<{ error?: string } | void>;
 }
 
 export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [errors, setErrors] = useState<{ fullName?: string; email?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    general?: string;
+  }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
@@ -31,29 +40,43 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) =
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      onReserve({
+    setErrors({});
+
+    try {
+      const result = await onReserve({
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
       });
+
+      if (result && result.error) {
+        setErrors({ email: result.error });
+        setIsSubmitting(false);
+        return;
+      }
+
       setIsSubmitting(false);
       setFullName('');
       setEmail('');
       setPhone('');
-    }, 450);
+    } catch (err: any) {
+      setErrors({
+        general: err?.message || 'Unable to complete reservation. Please try again.',
+      });
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Container with ultra-thin tinted stroke border, NO shadow box */}
       <div className="bg-white/95 backdrop-blur-md border border-slate-300/80 rounded-sm p-6 sm:p-7 transition-colors">
-        {/* Bold Header "Register" replacing the date and live seats */}
+        {/* Bold Header "Register" */}
         <div className="pb-4 mb-5 border-b border-slate-200">
           <h2 className="font-century-bold text-2xl sm:text-3xl tracking-tight text-slate-900">
             Register
@@ -121,6 +144,10 @@ export const ReservationForm: React.FC<ReservationFormProps> = ({ onReserve }) =
               <p className="text-[11px] text-rose-600 font-century mt-1">{errors.phone}</p>
             )}
           </div>
+
+          {errors.general && (
+            <p className="text-[11px] text-rose-600 font-century">{errors.general}</p>
+          )}
 
           {/* Submit Action: Single-word label 'Reserve' */}
           <div className="pt-2">

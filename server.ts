@@ -1,7 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
-import handler from './api/send-email.ts';
+import handler from './api/send-email.js';
 
 dotenv.config();
 

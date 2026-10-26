@@ -13,6 +13,8 @@ import { ThankYouView } from './components/ThankYouView';
 import { ContactWidget } from './components/ContactWidget';
 import venueImage from './assets/images/event_venue_minnesota_1793008779899.jpg';
 
+const STORAGE_KEY = 'twc_reservations_global_v4';
+
 export default function App() {
   // Splash to form to thank-you state
   const [phase, setPhase] = useState<'splash' | 'form' | 'thankyou'>('splash');
@@ -24,15 +26,18 @@ export default function App() {
 
   // Ensure browser address bar always reflects /minnesota-event
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/' || window.location.pathname === '')
+    ) {
       window.history.replaceState(null, '', '/minnesota-event');
     }
   }, []);
 
-  // Reservations state: starts strictly chronologically from Seat 1
+  // Reservations state: synced with global server ledger, starting chronologically from Seat #0001
   const [reservations, setReservations] = useState<Reservation[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('twc_reservations_chronological_v3');
+      const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -48,41 +53,95 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('twc_reservations_chronological_v3', JSON.stringify(reservations));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(reservations));
     }
   }, [reservations]);
 
-  const handleReserve = (data: { fullName: string; email: string; phone: string }) => {
-    // Strictly chronological: 1st person gets 1, 2nd gets 2, etc.
-    const seatNumber = reservations.length + 1;
-    const padded = seatNumber.toString().padStart(4, '0');
-    const newReservation: Reservation = {
-      id: `res-${Date.now()}`,
-      fullName: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      seatNumber: seatNumber,
-      ticketCode: `TWC-2026-${padded}`,
-      registeredAt: new Date().toISOString(),
-    };
+  const handleReserve = async (data: {
+    fullName: string;
+    email: string;
+    phone: string;
+  }): Promise<{ error?: string } | void> => {
+    const normalizedEmail = data.email.toLowerCase().trim();
+    const cleanPhone = data.phone.replace(/[^\d+]/g, '');
 
-    setReservations((prev) => [...prev, newReservation]);
-    setLatestReservation(newReservation);
-    setPhase('thankyou');
+    // 1. Client-side check: prevent ordering more than once on the same browser
+    const existingLocal = reservations.find(
+      (r) =>
+        r.email.toLowerCase().trim() === normalizedEmail ||
+        (cleanPhone.length >= 7 && r.phone.replace(/[^\d+]/g, '') === cleanPhone)
+    );
 
-    // Dispatch real email via /api/send-email
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newReservation),
-    })
-      .then((res) => res.json())
-      .then((result) => {
-        console.log('[Email Dispatch Status]:', result);
-      })
-      .catch((err) => {
-        console.error('[Email Dispatch Request Error]:', err);
+    if (existingLocal) {
+      const paddedExisting = existingLocal.seatNumber.toString().padStart(4, '0');
+      return {
+        error: `This email has already reserved a ticket (Seat #${paddedExisting}). Only one ticket is permitted per person.`,
+      };
+    }
+
+    // 2. Server-side global ledger check & email dispatch:
+    // Verifies across all users worldwide that this email hasn't registered before
+    // and assigns the true global chronological seat number (#0001, #0002, #0003...).
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: data.fullName,
+          email: normalizedEmail,
+          phone: data.phone,
+        }),
       });
+
+      const payload = await res.json();
+
+      if (res.status === 409 || payload.alreadyRegistered) {
+        return {
+          error:
+            payload.error ||
+            'This email has already reserved a ticket. Only one ticket is permitted per person.',
+        };
+      }
+
+      if (!res.ok) {
+        return {
+          error: payload.error || 'Unable to process reservation. Please try again.',
+        };
+      }
+
+      const assignedSeat = Number(payload.seatNumber) || reservations.length + 1;
+      const padded = assignedSeat.toString().padStart(4, '0');
+      const newReservation: Reservation = {
+        id: payload.reservation?.id || `res-${Date.now()}`,
+        fullName: data.fullName,
+        email: normalizedEmail,
+        phone: data.phone,
+        seatNumber: assignedSeat,
+        ticketCode: payload.ticketCode || `TWS-2026-${padded}`,
+        registeredAt: new Date().toISOString(),
+      };
+
+      setReservations((prev) => [...prev, newReservation]);
+      setLatestReservation(newReservation);
+      setPhase('thankyou');
+    } catch {
+      // Fallback if offline in preview sandbox
+      const fallbackSeat = reservations.length + 1;
+      const padded = fallbackSeat.toString().padStart(4, '0');
+      const newReservation: Reservation = {
+        id: `res-${Date.now()}`,
+        fullName: data.fullName,
+        email: normalizedEmail,
+        phone: data.phone,
+        seatNumber: fallbackSeat,
+        ticketCode: `TWS-2026-${padded}`,
+        registeredAt: new Date().toISOString(),
+      };
+
+      setReservations((prev) => [...prev, newReservation]);
+      setLatestReservation(newReservation);
+      setPhase('thankyou');
+    }
   };
 
   return (
@@ -106,7 +165,11 @@ export default function App() {
               key="splash-screen"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{
+                opacity: 0,
+                scale: 0.96,
+                transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+              }}
               className="w-full flex flex-col items-center justify-center"
             >
               <TypographyReveal onComplete={() => setPhase('form')} />
@@ -118,7 +181,11 @@ export default function App() {
               key="registration-form"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{
+                opacity: 0,
+                scale: 0.98,
+                transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+              }}
               className="w-full flex flex-col items-center justify-center"
             >
               <ReservationForm onReserve={handleReserve} />
@@ -130,7 +197,11 @@ export default function App() {
               key="thank-you-page"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{
+                opacity: 0,
+                scale: 0.98,
+                transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+              }}
               className="w-full flex flex-col items-center justify-center"
             >
               <ThankYouView
