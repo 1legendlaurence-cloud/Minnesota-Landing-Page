@@ -61,6 +61,15 @@ export default function App() {
     setReservations((prev) => [newReservation, ...prev]);
     setLatestReservation(newReservation);
     setIsModalOpen(true);
+
+    // Dispatch real email via Vercel serverless function (with graceful preview fallback)
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newReservation),
+    }).catch(() => {
+      // In preview or offline sandbox, UI continues seamlessly
+    });
   };
 
   return (
