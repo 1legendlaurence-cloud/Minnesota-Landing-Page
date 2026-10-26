@@ -9,7 +9,7 @@ export function getConfirmationEmail(reservation: Reservation) {
     subject: `Reservation Confirmed: Your Seat at The Wealth Code (${seatFormatted})`,
     from: 'Visionary Leadership Development <reservations@visionaryleadershipdevelopment.com>',
     to: `${reservation.fullName} <${reservation.email}>`,
-    replyTo: 'events@visionaryleadershipdevelopment.com',
+    replyTo: 'no-reply@visionaryleadershipdevelopment.com',
     date: 'Just now (Instant confirmation)',
     previewText: `Your reservation for The Wealth Code in Minnesota is confirmed. Seat ${seatFormatted} secured.`,
     bodyHtml: `

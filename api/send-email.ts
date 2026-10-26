@@ -36,7 +36,7 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({
         from: fromEmail,
         to: [email],
-        reply_to: process.env.REPLY_TO_EMAIL || 'events@visionaryleadershipdevelopment.com',
+        reply_to: process.env.REPLY_TO_EMAIL || 'no-reply@visionaryleadershipdevelopment.com',
         subject: `Reservation Confirmed: Your Seat at The Wealth Code (${seatFormatted})`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 4px;">
