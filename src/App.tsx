@@ -21,6 +21,13 @@ export default function App() {
     document.documentElement.classList.remove('dark');
   }, []);
 
+  // Ensure browser address bar always reflects /minnesota-event
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+      window.history.replaceState(null, '', '/minnesota-event');
+    }
+  }, []);
+
   // Reservations state
   const [reservations, setReservations] = useState<Reservation[]>(() => {
     if (typeof window !== 'undefined') {

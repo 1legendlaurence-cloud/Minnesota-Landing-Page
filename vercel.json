@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/minnesota-event",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
