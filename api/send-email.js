@@ -52,6 +52,9 @@ function writeLocalLedger(entries) {
   }
 }
 
+// Cutoff timestamp to clear earlier test registrations so the count starts at 0 (#0001)
+const RESET_CUTOFF_TIMESTAMP = '2026-10-26 19:30:00';
+
 // Query Resend's global sent-emails ledger to get the true global seat count
 // and verify that this email has never registered before from any device anywhere.
 async function checkGlobalResendLedger(apiKey, normalizedEmail) {
@@ -83,6 +86,11 @@ async function checkGlobalResendLedger(apiKey, normalizedEmail) {
     if (emails.length === 0) break;
 
     for (const item of emails) {
+      // Ignore previous test runs prior to the clean launch reset
+      if (String(item.created_at || '') <= RESET_CUTOFF_TIMESTAMP) {
+        continue;
+      }
+
       const subj = String(item.subject || '');
       const match = subj.match(subjectRegex);
       if (match) {
@@ -282,6 +290,77 @@ export default async function handler(req, res) {
 
     localLedger.push(newEntry);
     writeLocalLedger(localLedger);
+
+    // Instant coordinator notification to client's phone
+    const coordinatorEmail = getEnvVar('COORDINATOR_EMAIL', 'abinwie2019@gmail.com').trim();
+    if (coordinatorEmail && coordinatorEmail.includes('@')) {
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [coordinatorEmail],
+            reply_to: normalizedEmail,
+            subject: `New Member Registration: ${fullName} (Seat ${seatFormatted})`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 6px;">
+                <div style="background-color: #0f172a; color: #ffffff; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
+                  <span style="font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #94a3b8; display: block; margin-bottom: 4px;">Coordinator Alert</span>
+                  <h2 style="margin: 0; font-size: 20px; font-weight: bold; color: #ffffff;">NEW SUMMIT REGISTRATION</h2>
+                </div>
+
+                <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">
+                  A new attendee has just registered for <strong>The Wealth Summit</strong>:
+                </p>
+
+                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 16px; margin-bottom: 20px;">
+                  <table style="width: 100%; font-size: 14px; line-height: 2;">
+                    <tr>
+                      <td style="color: #64748b; width: 140px;">Full Name:</td>
+                      <td><strong style="color: #0f172a; font-size: 15px;">${fullName}</strong></td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b;">Email Address:</td>
+                      <td><a href="mailto:${normalizedEmail}" style="color: #0284c7; text-decoration: underline;">${normalizedEmail}</a></td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b;">Phone Number:</td>
+                      <td><strong style="color: #0f172a;">${phone ? `<a href="tel:${phone}" style="color: #0f172a; text-decoration: none;">${phone}</a>` : 'Not provided (Optional)'}</strong></td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b;">Assigned Seat:</td>
+                      <td><strong style="color: #0284c7; font-size: 15px;">${seatFormatted} of 1,000</strong></td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b;">Ticket Pass Code:</td>
+                      <td><code>${ticketCode}</code></td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b;">Registered At:</td>
+                      <td>${new Date().toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'full', timeStyle: 'short' })} (Central Time)</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 4px; padding: 12px; margin-bottom: 20px; font-size: 13px; color: #065f46;">
+                  <strong>Quick Actions:</strong> You can click "Reply" to this email to message <strong>${fullName}</strong> directly, or tap their phone number above to call.
+                </div>
+
+                <p style="font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; margin: 0;">
+                  Automated coordinator dispatch from visionaryleadershipdevelopment.com/minnesota-event
+                </p>
+              </div>
+            `,
+          }),
+        });
+      } catch (adminErr) {
+        console.error('[Admin Notification Error]:', adminErr);
+      }
+    }
 
     return res.status(200).json({
       delivered: true,
